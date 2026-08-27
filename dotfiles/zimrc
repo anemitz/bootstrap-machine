@@ -1,0 +1,17 @@
+# Core
+zmodule environment
+zmodule input
+zmodule utility
+zmodule git
+
+# Completions must load before highlighting and suggestions.
+zmodule zsh-users/zsh-completions --fpath src
+zmodule completion
+
+# Interactive features
+zmodule zsh-users/zsh-syntax-highlighting
+zmodule zsh-users/zsh-history-substring-search
+zmodule zsh-users/zsh-autosuggestions
+
+# Prompt
+zmodule romkatv/powerlevel10k

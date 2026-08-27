@@ -1,0 +1,819 @@
+#!/bin/sh
+
+set -eu
+
+SCRIPT_PATH=$0
+REPOSITORY_ROOT=$(CDPATH= cd -- "$(dirname -- "$SCRIPT_PATH")" && pwd)
+REPOSITORY_ARCHIVE_URL=${BOOTSTRAP_MACHINE_ARCHIVE_URL:-https://github.com/anemitz/bootstrap-machine/archive/refs/heads/main.tar.gz}
+SOURCE_INSTALL_ROOT=${BOOTSTRAP_MACHINE_SOURCE_ROOT:-$HOME/.local/share/bootstrap-machine/source}
+ACTION=install
+DRY_RUN=${BOOTSTRAP_MACHINE_DRY_RUN:-0}
+UPDATE_MODE=${BOOTSTRAP_MACHINE_UPDATING:-0}
+
+usage()
+{
+    cat <<'EOF'
+Usage: ./bootstrap-machine [install|update|doctor] [--dry-run]
+
+  install    Install tools and link dotfiles (default).
+  update     Pull the repository, update tools, and relink dotfiles.
+  doctor     Report missing commands without changing the machine.
+  --dry-run  Print commands without changing the machine.
+EOF
+}
+
+log()
+{
+    printf '\n==> %s\n' "$*"
+}
+
+warn()
+{
+    printf 'warning: %s\n' "$*" >&2
+}
+
+die()
+{
+    printf 'error: %s\n' "$*" >&2
+    exit 1
+}
+
+run()
+{
+    if [ "$DRY_RUN" -eq 1 ]
+    then
+        printf 'would run:'
+        printf ' %s' "$@"
+        printf '\n'
+        return 0
+    fi
+    "$@"
+}
+
+run_as_root()
+{
+    if [ "$(id -u)" -eq 0 ]
+    then
+        run "$@"
+    elif command -v sudo >/dev/null 2>&1
+    then
+        run sudo "$@"
+    else
+        die "sudo is required to install system packages"
+    fi
+}
+
+download_file()
+{
+    download_url=$1
+    download_destination=$2
+    curl --fail --location --silent --show-error "$download_url" --output "$download_destination"
+}
+
+run_remote_installer()
+{
+    installer_name=$1
+    installer_url=$2
+    installer_shell=$3
+
+    log "Installing $installer_name"
+    if [ "$DRY_RUN" -eq 1 ]
+    then
+        printf 'would download and run: %s\n' "$installer_url"
+        return 0
+    fi
+
+    installer_directory=$(mktemp -d "${TMPDIR:-/tmp}/bootstrap-machine.XXXXXX")
+    installer_file="$installer_directory/install.sh"
+    download_file "$installer_url" "$installer_file"
+    if ! "$installer_shell" "$installer_file"
+    then
+        rm -rf -- "$installer_directory"
+        die "$installer_name installation failed"
+    fi
+    rm -rf -- "$installer_directory"
+}
+
+command_needs_install()
+{
+    command_name=$1
+    if [ "$UPDATE_MODE" -eq 1 ] || ! command -v "$command_name" >/dev/null 2>&1
+    then
+        return 0
+    fi
+    return 1
+}
+
+command_needs_local_update()
+{
+    local_command_name=$1
+    local_command_path=$(command -v "$local_command_name" 2>/dev/null || true)
+    if [ -z "$local_command_path" ]
+    then
+        return 0
+    fi
+    if [ "$UPDATE_MODE" -eq 1 ]
+    then
+        case "$local_command_path" in
+            "$HOME/.local/"*)
+                return 0
+                ;;
+        esac
+    fi
+    return 1
+}
+
+repository_is_complete()
+{
+    [ -f "$REPOSITORY_ROOT/bootstrap-machine" ] &&
+        [ -d "$REPOSITORY_ROOT/dotfiles/nvim" ] &&
+        [ -f "$REPOSITORY_ROOT/dotfiles/zshrc" ] &&
+        [ "$REPOSITORY_ROOT/bootstrap-machine" -ef "$SCRIPT_PATH" ]
+}
+
+install_repository_archive()
+{
+    log "Fetching bootstrap-machine configuration"
+    if [ "$DRY_RUN" -eq 1 ]
+    then
+        printf 'would install: %s -> %s\n' "$REPOSITORY_ARCHIVE_URL" "$SOURCE_INSTALL_ROOT"
+        return 0
+    fi
+
+    source_parent=$(dirname -- "$SOURCE_INSTALL_ROOT")
+    source_directory=$(mktemp -d "${TMPDIR:-/tmp}/bootstrap-machine.XXXXXX")
+    source_archive="$source_directory/source.tar.gz"
+    source_next="$source_parent/source.next.$$"
+    source_previous="$source_parent/source.previous"
+
+    download_file "$REPOSITORY_ARCHIVE_URL" "$source_archive"
+    mkdir -p "$source_next"
+    tar -xzf "$source_archive" -C "$source_next" --strip-components=1
+    [ -x "$source_next/bootstrap-machine" ] || die "downloaded archive is missing bootstrap-machine"
+    [ -d "$source_next/dotfiles/nvim" ] || die "downloaded archive is missing Neovim configuration"
+
+    rm -rf -- "$source_previous"
+    if [ -e "$SOURCE_INSTALL_ROOT" ]
+    then
+        mv "$SOURCE_INSTALL_ROOT" "$source_previous"
+    fi
+    if ! mv "$source_next" "$SOURCE_INSTALL_ROOT"
+    then
+        if [ -e "$source_previous" ]
+        then
+            mv "$source_previous" "$SOURCE_INSTALL_ROOT"
+        fi
+        rm -rf -- "$source_directory" "$source_next"
+        die "could not install the downloaded repository archive"
+    fi
+    rm -rf -- "$source_directory"
+}
+
+while [ "$#" -gt 0 ]
+do
+    case "$1" in
+        install|update|doctor)
+            ACTION=$1
+            ;;
+        --dry-run)
+            DRY_RUN=1
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            usage >&2
+            exit 2
+            ;;
+    esac
+    shift
+done
+
+export PATH="$HOME/.local/bin:$HOME/.bun/bin:$HOME/.cargo/bin:$PATH"
+export HOMEBREW_NO_ASK=1
+
+if ! repository_is_complete
+then
+    install_repository_archive
+    if [ "$DRY_RUN" -eq 1 ]
+    then
+        log "Dry run complete"
+        exit 0
+    fi
+    if [ "$ACTION" = update ]
+    then
+        BOOTSTRAP_MACHINE_UPDATING=1 exec "$SOURCE_INSTALL_ROOT/bootstrap-machine" install
+    fi
+    exec "$SOURCE_INSTALL_ROOT/bootstrap-machine" "$ACTION"
+fi
+
+case "${BOOTSTRAP_MACHINE_PLATFORM:-$(uname -s)}" in
+    Darwin|macos)
+        PLATFORM=macos
+        PACKAGE_MANAGER=brew
+        ;;
+    Linux|linux)
+        PLATFORM=linux
+        if [ -n "${BOOTSTRAP_MACHINE_PACKAGE_MANAGER:-}" ]
+        then
+            PACKAGE_MANAGER=$BOOTSTRAP_MACHINE_PACKAGE_MANAGER
+        elif command -v apt-get >/dev/null 2>&1
+        then
+            PACKAGE_MANAGER=apt
+        elif command -v pacman >/dev/null 2>&1
+        then
+            PACKAGE_MANAGER=pacman
+        else
+            die "Linux requires apt-get or pacman"
+        fi
+        ;;
+    *)
+        die "supported platforms are macOS and Linux"
+        ;;
+esac
+
+self_update()
+{
+    log "Updating bootstrap-machine"
+    if [ "$DRY_RUN" -eq 1 ]
+    then
+        if [ -e "$REPOSITORY_ROOT/.git" ]
+        then
+            printf 'would run: git -C %s pull --ff-only\n' "$REPOSITORY_ROOT"
+        else
+            install_repository_archive
+        fi
+        UPDATE_MODE=1
+        return 0
+    fi
+
+    if [ -e "$REPOSITORY_ROOT/.git" ]
+    then
+        [ -z "$(git -C "$REPOSITORY_ROOT" status --porcelain)" ] || die "commit or stash repository changes before updating"
+        git -C "$REPOSITORY_ROOT" pull --ff-only
+        BOOTSTRAP_MACHINE_UPDATING=1 exec "$REPOSITORY_ROOT/bootstrap-machine" install
+    fi
+
+    install_repository_archive
+    BOOTSTRAP_MACHINE_UPDATING=1 exec "$SOURCE_INSTALL_ROOT/bootstrap-machine" install
+}
+
+ensure_homebrew()
+{
+    if ! command -v brew >/dev/null 2>&1
+    then
+        if [ "$DRY_RUN" -eq 1 ]
+        then
+            printf 'would install Homebrew from https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh\n'
+            return 0
+        fi
+        run_remote_installer Homebrew https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh /bin/bash
+    fi
+
+    if command -v brew >/dev/null 2>&1
+    then
+        eval "$(brew shellenv)"
+    elif [ -x /opt/homebrew/bin/brew ]
+    then
+        eval "$(/opt/homebrew/bin/brew shellenv)"
+    elif [ -x /usr/local/bin/brew ]
+    then
+        eval "$(/usr/local/bin/brew shellenv)"
+    else
+        die "Homebrew was installed but is not discoverable"
+    fi
+}
+
+install_brew_packages()
+{
+    log "Installing Homebrew packages"
+    ensure_homebrew
+    if [ "$DRY_RUN" -eq 1 ] && ! command -v brew >/dev/null 2>&1
+    then
+        printf '%s\n' "would install Homebrew packages: gh neovim btop lazydocker lazygit fzf zoxide ripgrep eza fd bat tlrc yt-dlp tmux ruby llvm@18 try"
+        return 0
+    fi
+
+    if [ "$UPDATE_MODE" -eq 1 ]
+    then
+        run brew update
+    fi
+
+    for formula_name in gh neovim btop lazydocker lazygit fzf zoxide ripgrep eza fd bat tlrc yt-dlp tmux ruby llvm@18
+    do
+        if ! brew list --formula "$formula_name" >/dev/null 2>&1
+        then
+            run brew install "$formula_name"
+        elif [ "$UPDATE_MODE" -eq 1 ] && [ -n "$(brew outdated --formula "$formula_name" 2>/dev/null)" ]
+        then
+            run brew upgrade "$formula_name"
+        fi
+    done
+
+    if ! brew list --formula try >/dev/null 2>&1
+    then
+        if ! brew tap | grep -q '^tobi/try$'
+        then
+            run brew tap tobi/try https://github.com/tobi/try
+        fi
+        run brew install try
+    elif [ "$UPDATE_MODE" -eq 1 ] && [ -n "$(brew outdated --formula try 2>/dev/null)" ]
+    then
+        run brew upgrade try
+    fi
+}
+
+install_apt_packages()
+{
+    log "Installing APT packages"
+    if [ "$DRY_RUN" -eq 1 ]
+    then
+        printf '%s\n' "would configure GitHub CLI's official APT repository"
+        printf '%s\n' "would install APT packages: zsh gh btop fzf ripgrep fd-find bat tmux ruby-full python3 python3-pip pipx eza zoxide yt-dlp clangd-18 clang-format-18"
+        return 0
+    fi
+
+    run_as_root apt-get update
+    run_as_root env DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates curl git gpg unzip tar gzip xz-utils build-essential
+
+    apt_key_directory=$(mktemp -d "${TMPDIR:-/tmp}/bootstrap-machine.XXXXXX")
+    download_file https://cli.github.com/packages/githubcli-archive-keyring.gpg "$apt_key_directory/githubcli.gpg"
+    printf 'deb [arch=%s signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main\n' "$(dpkg --print-architecture)" > "$apt_key_directory/github-cli.list"
+    run_as_root install -d -m 0755 /etc/apt/keyrings
+    run_as_root install -m 0644 "$apt_key_directory/githubcli.gpg" /etc/apt/keyrings/githubcli-archive-keyring.gpg
+    run_as_root install -m 0644 "$apt_key_directory/github-cli.list" /etc/apt/sources.list.d/github-cli.list
+    rm -rf -- "$apt_key_directory"
+    run_as_root apt-get update
+
+    apt_packages=""
+    for apt_candidate in zsh gh btop fzf ripgrep fd-find bat tmux ruby-full python3 python3-pip pipx eza zoxide yt-dlp wl-clipboard xclip clangd-18 clang-format-18
+    do
+        if apt-cache show "$apt_candidate" >/dev/null 2>&1
+        then
+            apt_packages="$apt_packages $apt_candidate"
+        else
+            warn "APT package unavailable: $apt_candidate; a fallback will be used where available"
+        fi
+    done
+    # Word splitting is intentional: every value came from the fixed list above.
+    run_as_root env DEBIAN_FRONTEND=noninteractive apt-get install -y $apt_packages
+
+    if command -v fdfind >/dev/null 2>&1 && ! command -v fd >/dev/null 2>&1
+    then
+        run ln -sfn "$(command -v fdfind)" "$HOME/.local/bin/fd"
+    fi
+    if command -v batcat >/dev/null 2>&1 && ! command -v bat >/dev/null 2>&1
+    then
+        run ln -sfn "$(command -v batcat)" "$HOME/.local/bin/bat"
+    fi
+}
+
+install_pacman_packages()
+{
+    log "Installing pacman packages"
+    pacman_candidates="zsh git curl github-cli neovim btop lazygit fzf zoxide ripgrep eza fd bat tealdeer yt-dlp tmux ruby python-pipx unzip base-devel wl-clipboard xclip clang"
+    if [ "$DRY_RUN" -eq 1 ]
+    then
+        printf 'would run: sudo pacman -Syu --needed %s\n' "$pacman_candidates"
+        return 0
+    fi
+
+    pacman_packages=""
+    for pacman_candidate in $pacman_candidates
+    do
+        if pacman -Si "$pacman_candidate" >/dev/null 2>&1
+        then
+            pacman_packages="$pacman_packages $pacman_candidate"
+        else
+            warn "pacman package unavailable: $pacman_candidate"
+        fi
+    done
+    # Arch does not support partial upgrades; -Syu is deliberate.
+    run_as_root pacman -Syu --needed $pacman_packages
+}
+
+linux_asset_architecture()
+{
+    case "$(uname -m)" in
+        x86_64|amd64)
+            printf 'x86_64\n'
+            ;;
+        aarch64|arm64)
+            printf 'arm64\n'
+            ;;
+        *)
+            die "unsupported Linux architecture: $(uname -m)"
+            ;;
+    esac
+}
+
+install_neovim_release()
+{
+    log "Installing the latest Neovim release"
+    if [ "$DRY_RUN" -eq 1 ]
+    then
+        printf 'would install Neovim from its latest official Linux tarball\n'
+        return 0
+    fi
+
+    nvim_arch=$(linux_asset_architecture)
+    nvim_directory=$(mktemp -d "${TMPDIR:-/tmp}/bootstrap-machine.XXXXXX")
+    nvim_archive="$nvim_directory/nvim.tar.gz"
+    nvim_install_root="$HOME/.local/share/bootstrap-machine"
+    nvim_next="$nvim_install_root/nvim.next.$$"
+    nvim_current="$nvim_install_root/nvim"
+    nvim_previous="$nvim_install_root/nvim.previous.$$"
+
+    download_file "https://github.com/neovim/neovim/releases/latest/download/nvim-linux-$nvim_arch.tar.gz" "$nvim_archive"
+    mkdir -p "$nvim_next" "$HOME/.local/bin"
+    tar -xzf "$nvim_archive" -C "$nvim_next" --strip-components=1
+    if [ -e "$nvim_current" ]
+    then
+        mv "$nvim_current" "$nvim_previous"
+    fi
+    if ! mv "$nvim_next" "$nvim_current"
+    then
+        if [ -e "$nvim_previous" ]
+        then
+            mv "$nvim_previous" "$nvim_current"
+        fi
+        rm -rf -- "$nvim_directory" "$nvim_next"
+        die "Neovim installation failed"
+    fi
+    rm -rf -- "$nvim_directory" "$nvim_previous"
+    ln -sfn "$nvim_current/bin/nvim" "$HOME/.local/bin/nvim"
+}
+
+install_lazygit_release()
+{
+    log "Installing the latest lazygit release"
+    if [ "$DRY_RUN" -eq 1 ]
+    then
+        printf 'would install lazygit from its latest official GitHub release\n'
+        return 0
+    fi
+
+    lazygit_arch=$(linux_asset_architecture)
+    lazygit_directory=$(mktemp -d "${TMPDIR:-/tmp}/bootstrap-machine.XXXXXX")
+    download_file https://api.github.com/repos/jesseduffield/lazygit/releases/latest "$lazygit_directory/release.json"
+    lazygit_version=$(sed -n 's/.*"tag_name":[[:space:]]*"v\([^"]*\)".*/\1/p' "$lazygit_directory/release.json" | head -n 1)
+    [ -n "$lazygit_version" ] || die "could not determine the latest lazygit version"
+    download_file "https://github.com/jesseduffield/lazygit/releases/download/v$lazygit_version/lazygit_${lazygit_version}_Linux_${lazygit_arch}.tar.gz" "$lazygit_directory/lazygit.tar.gz"
+    tar -xzf "$lazygit_directory/lazygit.tar.gz" -C "$lazygit_directory" lazygit
+    install -m 0755 "$lazygit_directory/lazygit" "$HOME/.local/bin/lazygit"
+    rm -rf -- "$lazygit_directory"
+}
+
+install_eza_release()
+{
+    log "Installing the latest eza release"
+    if [ "$DRY_RUN" -eq 1 ]
+    then
+        printf 'would install eza from its latest official GitHub release\n'
+        return 0
+    fi
+
+    case "$(uname -m)" in
+        x86_64|amd64)
+            eza_target=x86_64-unknown-linux-gnu
+            ;;
+        aarch64|arm64)
+            eza_target=aarch64-unknown-linux-gnu
+            ;;
+        *)
+            die "unsupported Linux architecture for eza: $(uname -m)"
+            ;;
+    esac
+    eza_directory=$(mktemp -d "${TMPDIR:-/tmp}/bootstrap-machine.XXXXXX")
+    download_file "https://github.com/eza-community/eza/releases/latest/download/eza_$eza_target.tar.gz" "$eza_directory/eza.tar.gz"
+    tar -xzf "$eza_directory/eza.tar.gz" -C "$eza_directory"
+    install -m 0755 "$eza_directory/eza" "$HOME/.local/bin/eza"
+    rm -rf -- "$eza_directory"
+}
+
+install_lazydocker_release()
+{
+    log "Installing the latest lazydocker release"
+    if [ "$DRY_RUN" -eq 1 ]
+    then
+        printf 'would run the official lazydocker Linux installer\n'
+        return 0
+    fi
+
+    lazydocker_directory=$(mktemp -d "${TMPDIR:-/tmp}/bootstrap-machine.XXXXXX")
+    lazydocker_script="$lazydocker_directory/install.sh"
+    download_file https://raw.githubusercontent.com/jesseduffield/lazydocker/master/scripts/install_update_linux.sh "$lazydocker_script"
+    if ! DIR="$HOME/.local/bin" /bin/bash "$lazydocker_script"
+    then
+        rm -rf -- "$lazydocker_directory"
+        die "lazydocker installation failed"
+    fi
+    rm -rf -- "$lazydocker_directory"
+}
+
+install_zoxide_release()
+{
+    run_remote_installer zoxide https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh /bin/sh
+}
+
+install_ytdlp_release()
+{
+    log "Installing the latest yt-dlp release"
+    if [ "$DRY_RUN" -eq 1 ]
+    then
+        printf 'would download the official yt-dlp executable\n'
+        return 0
+    fi
+    download_file https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp "$HOME/.local/bin/yt-dlp"
+    chmod 0755 "$HOME/.local/bin/yt-dlp"
+}
+
+install_tldr_client()
+{
+    if [ "$DRY_RUN" -eq 1 ]
+    then
+        log "Installing the tldr client"
+        printf 'would install or update tldr with pipx\n'
+        return 0
+    fi
+    if [ "$UPDATE_MODE" -eq 0 ] && command -v tldr >/dev/null 2>&1
+    then
+        return 0
+    fi
+    if command -v pipx >/dev/null 2>&1
+    then
+        log "Installing the tldr client"
+        run pipx install --force tldr
+    else
+        warn "pipx is unavailable; tldr could not be installed"
+    fi
+}
+
+install_try_linux()
+{
+    if ! command_needs_install try
+    then
+        return 0
+    fi
+    log "Installing try"
+    if [ "$DRY_RUN" -eq 1 ]
+    then
+        printf 'would install try from https://github.com/tobi/try\n'
+        return 0
+    fi
+    download_file https://raw.githubusercontent.com/tobi/try/refs/heads/main/try.rb "$HOME/.local/bin/try"
+    chmod 0755 "$HOME/.local/bin/try"
+}
+
+install_linux_fallbacks()
+{
+    if [ "$PACKAGE_MANAGER" = apt ]
+    then
+        install_neovim_release
+        install_lazygit_release
+    fi
+    if command_needs_install lazydocker
+    then
+        install_lazydocker_release
+    fi
+    if command_needs_local_update zoxide
+    then
+        install_zoxide_release
+    fi
+    if command_needs_local_update eza
+    then
+        install_eza_release
+    fi
+    if command_needs_local_update yt-dlp
+    then
+        install_ytdlp_release
+    fi
+    if [ "$PACKAGE_MANAGER" = apt ]
+    then
+        install_tldr_client
+    fi
+    install_try_linux
+}
+
+install_ai_tools()
+{
+    if command_needs_install codex
+    then
+        run_remote_installer "Codex CLI" https://chatgpt.com/codex/install.sh /bin/sh
+    fi
+    if command_needs_install claude
+    then
+        run_remote_installer "Claude Code" https://claude.ai/install.sh /bin/bash
+    fi
+    if command_needs_install grok
+    then
+        run_remote_installer "Grok Build" https://x.ai/cli/install.sh /bin/bash
+    fi
+    if command_needs_install herdr
+    then
+        run_remote_installer Herdr https://herdr.dev/install.sh /bin/sh
+    fi
+    if command_needs_install bun
+    then
+        run_remote_installer Bun https://bun.sh/install /bin/bash
+        export PATH="$HOME/.bun/bin:$PATH"
+    fi
+
+    if command -v bun >/dev/null 2>&1 || [ "$DRY_RUN" -eq 1 ]
+    then
+        log "Installing oh-my-pi"
+        run bun install --global @oh-my-pi/pi-coding-agent@latest
+    else
+        warn "Bun is unavailable; oh-my-pi could not be installed"
+    fi
+}
+
+backup_root=""
+
+link_dotfile()
+{
+    dotfile_source=$1
+    dotfile_target=$2
+
+    if [ -L "$dotfile_target" ] && [ "$(readlink "$dotfile_target")" = "$dotfile_source" ]
+    then
+        return 0
+    fi
+
+    if [ "$DRY_RUN" -eq 1 ]
+    then
+        printf 'would link: %s -> %s\n' "$dotfile_target" "$dotfile_source"
+        return 0
+    fi
+
+    if [ -e "$dotfile_target" ] || [ -L "$dotfile_target" ]
+    then
+        if [ -z "$backup_root" ]
+        then
+            backup_root="$HOME/.local/state/bootstrap-machine/backups/$(date +%Y%m%d-%H%M%S)"
+        fi
+        dotfile_relative=${dotfile_target#"$HOME"/}
+        dotfile_backup="$backup_root/$dotfile_relative"
+        mkdir -p "$(dirname -- "$dotfile_backup")"
+        mv "$dotfile_target" "$dotfile_backup"
+        printf 'backed up: %s -> %s\n' "$dotfile_target" "$dotfile_backup"
+    fi
+
+    mkdir -p "$(dirname -- "$dotfile_target")"
+    ln -s "$dotfile_source" "$dotfile_target"
+}
+
+install_dotfiles()
+{
+    log "Linking dotfiles"
+    link_dotfile "$REPOSITORY_ROOT/dotfiles/zshrc" "$HOME/.zshrc"
+    link_dotfile "$REPOSITORY_ROOT/dotfiles/zshenv" "$HOME/.zshenv"
+    link_dotfile "$REPOSITORY_ROOT/dotfiles/zimrc" "$HOME/.zimrc"
+    link_dotfile "$REPOSITORY_ROOT/dotfiles/p10k.zsh" "$HOME/.p10k.zsh"
+    link_dotfile "$REPOSITORY_ROOT/dotfiles/tmux.conf" "$HOME/.tmux.conf"
+    link_dotfile "$REPOSITORY_ROOT/dotfiles/nvim" "$HOME/.config/nvim"
+    link_dotfile "$REPOSITORY_ROOT/bin/clipboard-copy" "$HOME/.local/bin/clipboard-copy"
+    link_dotfile "$REPOSITORY_ROOT/bootstrap-machine" "$HOME/.local/bin/bootstrap-machine"
+
+    if [ "$DRY_RUN" -eq 1 ]
+    then
+        printf 'would link: %s -> nvim\n' "$HOME/.local/bin/vim"
+    else
+        mkdir -p "$HOME/.local/bin"
+        nvim_executable=$(command -v nvim 2>/dev/null || true)
+        [ -n "$nvim_executable" ] || die "Neovim was not installed"
+        if [ -e "$HOME/.local/bin/vim" ] && [ ! -L "$HOME/.local/bin/vim" ]
+        then
+            die "$HOME/.local/bin/vim exists and is not a symlink"
+        fi
+        ln -sfn "$nvim_executable" "$HOME/.local/bin/vim"
+    fi
+}
+
+install_shell_plugins()
+{
+    log "Installing shell and tmux plugins"
+    if [ "$DRY_RUN" -eq 1 ]
+    then
+        printf 'would install/update Zim modules and TPM plugins\n'
+        return 0
+    fi
+
+    if [ "$UPDATE_MODE" -eq 1 ]
+    then
+        zsh -ic 'zimfw update' </dev/null
+    else
+        zsh -ic 'zimfw install' </dev/null
+    fi
+
+    if [ ! -d "$HOME/.tmux/plugins/tpm/.git" ]
+    then
+        git clone https://github.com/tmux-plugins/tpm "$HOME/.tmux/plugins/tpm"
+    elif [ "$UPDATE_MODE" -eq 1 ]
+    then
+        git -C "$HOME/.tmux/plugins/tpm" pull --ff-only
+    fi
+    "$HOME/.tmux/plugins/tpm/bin/install_plugins"
+    if [ "$UPDATE_MODE" -eq 1 ]
+    then
+        "$HOME/.tmux/plugins/tpm/bin/update_plugins" all
+    fi
+}
+
+sync_neovim()
+{
+    log "Synchronizing Neovim plugins"
+    if [ "$DRY_RUN" -eq 1 ]
+    then
+        printf 'would run: nvim --headless +Lazy! sync +qa!\n'
+        return 0
+    fi
+    nvim --headless -i NONE '+Lazy! sync' '+qa!'
+}
+
+set_default_shell()
+{
+    zsh_executable=$(command -v zsh 2>/dev/null || true)
+    [ -n "$zsh_executable" ] || die "zsh was not installed"
+    if [ "${SHELL:-}" = "$zsh_executable" ]
+    then
+        return 0
+    fi
+
+    if [ "$DRY_RUN" -eq 1 ]
+    then
+        printf 'would set the login shell to %s\n' "$zsh_executable"
+        return 0
+    fi
+    if [ -t 0 ]
+    then
+        log "Setting the login shell to $zsh_executable"
+        chsh -s "$zsh_executable"
+    else
+        warn "run 'chsh -s $zsh_executable' in an interactive terminal to make Zsh the login shell"
+    fi
+}
+
+doctor()
+{
+    doctor_failed=0
+    for required_command in bootstrap-machine zsh gh nvim vim btop lazydocker lazygit codex claude grok omp herdr fzf zoxide rg eza fd bat tldr yt-dlp try tmux
+    do
+        if command -v "$required_command" >/dev/null 2>&1
+        then
+            printf '%-12s %s\n' "$required_command" "$(command -v "$required_command")"
+        else
+            printf '%-12s %s\n' "$required_command" missing
+            doctor_failed=1
+        fi
+    done
+    return "$doctor_failed"
+}
+
+if [ "$ACTION" = update ] && [ "$UPDATE_MODE" -eq 0 ]
+then
+    self_update
+fi
+
+if [ "$ACTION" = doctor ]
+then
+    doctor
+    exit $?
+fi
+
+run mkdir -p "$HOME/.local/bin" "$HOME/.local/share/bootstrap-machine"
+
+case "$PACKAGE_MANAGER" in
+    brew)
+        install_brew_packages
+        ;;
+    apt)
+        install_apt_packages
+        ;;
+    pacman)
+        install_pacman_packages
+        ;;
+    *)
+        die "unsupported package manager: $PACKAGE_MANAGER"
+        ;;
+esac
+
+install_ai_tools
+if [ "$PLATFORM" = linux ]
+then
+    install_linux_fallbacks
+fi
+install_dotfiles
+install_shell_plugins
+sync_neovim
+set_default_shell
+
+log "Installed commands"
+if [ "$DRY_RUN" -eq 1 ]
+then
+    log "Dry run complete"
+    exit 0
+fi
+doctor
+log "Bootstrap complete; restart your shell"

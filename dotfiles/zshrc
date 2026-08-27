@@ -1,0 +1,117 @@
+# Powerlevel10k instant prompt must remain near the top.
+if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
+  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+fi
+
+export PATH="$HOME/.local/bin:$HOME/.npm-global/bin:$HOME/.bun/bin:$HOME/.cargo/bin:$PATH"
+export EDITOR=nvim
+export VISUAL=nvim
+
+# Homebrew is optional and may use either macOS prefix.
+if [[ -x /opt/homebrew/bin/brew ]]; then
+  eval "$(/opt/homebrew/bin/brew shellenv)"
+elif [[ -x /usr/local/bin/brew ]]; then
+  eval "$(/usr/local/bin/brew shellenv)"
+fi
+
+# Zim
+ZIM_HOME=${ZIM_HOME:-$HOME/.zim}
+if [[ ! -e $ZIM_HOME/zimfw.zsh ]]; then
+  curl -fsSL --create-dirs -o "$ZIM_HOME/zimfw.zsh" \
+    https://github.com/zimfw/zimfw/releases/latest/download/zimfw.zsh
+fi
+if [[ ! $ZIM_HOME/init.zsh -nt $HOME/.zimrc ]]; then
+  source "$ZIM_HOME/zimfw.zsh" init
+fi
+source "$ZIM_HOME/init.zsh"
+[[ ! -f $HOME/.p10k.zsh ]] || source "$HOME/.p10k.zsh"
+
+# History
+HISTFILE=$HOME/.zsh_history
+HISTSIZE=50000
+SAVEHIST=50000
+setopt EXTENDED_HISTORY
+setopt HIST_EXPIRE_DUPS_FIRST
+setopt HIST_IGNORE_DUPS
+setopt HIST_IGNORE_SPACE
+setopt HIST_VERIFY
+setopt SHARE_HISTORY
+setopt INC_APPEND_HISTORY
+
+# Key bindings
+bindkey -e
+bindkey '^[[A' history-substring-search-up
+bindkey '^[[B' history-substring-search-down
+
+# Modern CLI replacements
+if (( $+commands[eza] )); then
+  alias ls='eza --icons --group-directories-first'
+  alias ll='eza -la --icons --group-directories-first'
+  alias lsa='eza -la --icons --group-directories-first'
+  alias lt='eza -la --icons --tree --level=2'
+  alias lta='eza -la --icons --tree --level=2'
+fi
+if (( $+commands[bat] )); then
+  alias cat='bat --paging=never --style=plain'
+  alias catp='bat'
+fi
+
+# Common aliases
+alias v='nvim'
+alias vim='nvim'
+alias g='git'
+alias gs='git status'
+alias gd='git diff'
+alias gl='git log --oneline --graph --decorate -20'
+alias gp='git push'
+alias gc='git commit'
+alias gca='git commit --amend'
+alias gco='git checkout'
+alias t='tmux'
+alias ta='tmux attach -t'
+alias tn='tmux new -s'
+alias tl='tmux list-sessions'
+alias tk='tmux kill-session -t'
+alias mux='tmuxinator'
+alias ..='cd ..'
+alias ...='cd ../..'
+alias ....='cd ../../..'
+alias zshrc='nvim ~/.zshrc'
+alias tmuxrc='nvim ~/.tmux.conf'
+alias vimrc='nvim ~/.config/nvim/lua/plugins/custom.lua'
+
+# fzf
+if (( $+commands[fzf] )); then
+  export FZF_DEFAULT_COMMAND='fd --type f --hidden --follow --exclude .git'
+  export FZF_CTRL_T_COMMAND=$FZF_DEFAULT_COMMAND
+  export FZF_ALT_C_COMMAND='fd --type d --hidden --follow --exclude .git'
+  export FZF_DEFAULT_OPTS='
+    --height 40%
+    --layout=reverse
+    --border
+    --info=inline
+    --color=fg:#c0caf5,bg:#1a1b26,hl:#bb9af7
+    --color=fg+:#c0caf5,bg+:#292e42,hl+:#7dcfff
+    --color=info:#7aa2f7,prompt:#7dcfff,pointer:#ff007c
+    --color=marker:#9ece6a,spinner:#9ece6a,header:#9ece6a
+  '
+  if fzf --zsh >/dev/null 2>&1; then
+    source <(fzf --zsh)
+  elif [[ -f $HOME/.fzf.zsh ]]; then
+    source "$HOME/.fzf.zsh"
+  elif [[ -f /usr/share/doc/fzf/examples/key-bindings.zsh ]]; then
+    source /usr/share/doc/fzf/examples/key-bindings.zsh
+  fi
+fi
+
+# Experiment navigation loads before the cd alias can affect its function body.
+if (( $+commands[try] )); then
+  eval "$(try init "$HOME/Work/tries")"
+fi
+if (( $+commands[zoxide] )); then
+  eval "$(zoxide init zsh)"
+  alias cd='z'
+fi
+
+# Bun completions
+[[ -s $HOME/.bun/_bun ]] && source "$HOME/.bun/_bun"
