@@ -64,14 +64,14 @@ Report missing commands:
 | --- | --- |
 | Shell | Zsh, Zim, Powerlevel10k, and tmux |
 | Terminal | Ghostty |
-| Terminal tools | GitHub CLI (`gh`), btop, lazygit, and lazydocker |
-| Omarchy shell tools | fzf, zoxide, ripgrep (`rg`), eza, fd, bat, tldr, yt-dlp, and try |
+| Terminal tools | GitHub CLI (`gh`) with the `basecamp/gh-signoff` extension, btop, lazygit, and lazydocker |
+| Omarchy shell tools | fzf, zoxide, ripgrep (`rg`), eza, fd, bat, tldr, and yt-dlp |
 | Editor | Neovim, LazyVim, clangd, and clang-format |
 | AI tools | Codex CLI, Claude Code, Grok Build, oh-my-pi (`omp`), and Herdr |
 | AI runtime | Bun, used to install and update oh-my-pi |
 | Language | Rust via rustup (`rustc`, `cargo`, rustfmt, and clippy) |
 
-AI CLIs use their publishers' installers. Rust uses the official rustup installer on every platform. `try` uses its upstream script on Linux and the `tobi/try` tap on macOS.
+AI CLIs use their publishers' installers. Rust uses the official rustup installer on every platform. After GitHub CLI is installed, the script runs `gh extension install basecamp/gh-signoff` so `gh signoff` is available.
 
 ### macOS packages
 
@@ -79,10 +79,10 @@ The script installs Homebrew when missing. It then manages these formulae:
 
 ```text
 gh neovim btop lazydocker lazygit fzf zoxide ripgrep eza fd bat
-tlrc yt-dlp tmux ruby llvm@18 try
+tlrc yt-dlp tmux llvm@18 colima docker
 ```
 
-Ghostty is installed with `brew install --cask ghostty`. `try` comes from `https://github.com/tobi/try`. The built-in macOS Zsh is retained. Homebrew confirmation prompts are disabled for unattended bootstrap runs.
+Ghostty is installed with `brew install --cask ghostty`. Colima and the Docker CLI provide a local container runtime; start it with `colima start` after install. The built-in macOS Zsh is retained. Homebrew confirmation prompts are disabled for unattended bootstrap runs.
 
 ### Ubuntu and Debian packages
 
@@ -95,11 +95,11 @@ ca-certificates curl git gpg unzip tar gzip xz-utils build-essential
 It configures GitHub CLI's official APT repository, then installs each available package from:
 
 ```text
-zsh gh btop fzf ripgrep fd-find bat tmux ruby-full python3 python3-pip
+zsh gh btop fzf ripgrep fd-find bat tmux python3 python3-pip
 pipx eza zoxide yt-dlp wl-clipboard xclip clangd-18 clang-format-18 ghostty
 ```
 
-If Ghostty is not in the distro repositories, the script uses the community Ubuntu/Debian packages. The latest upstream Neovim and lazygit Linux releases are installed under `~/.local`. Missing or outdated eza, zoxide, and yt-dlp receive upstream fallbacks. lazydocker uses its upstream installer, tldr uses pipx, and try uses its upstream Ruby script. `fdfind` and `batcat` receive `fd` and `bat` compatibility links when required.
+If Ghostty is not in the distro repositories, the script uses the community Ubuntu/Debian packages. The latest upstream Neovim and lazygit Linux releases are installed under `~/.local`. Missing or outdated eza, zoxide, and yt-dlp receive upstream fallbacks. lazydocker uses its upstream installer, and tldr uses pipx. `fdfind` and `batcat` receive `fd` and `bat` compatibility links when required.
 
 ### Arch and Omarchy packages
 
@@ -107,11 +107,11 @@ The script installs each available package from:
 
 ```text
 zsh git curl github-cli neovim btop lazygit fzf zoxide ripgrep eza fd bat
-tealdeer yt-dlp tmux ruby python-pipx unzip base-devel wl-clipboard xclip clang
+tealdeer yt-dlp tmux python-pipx unzip base-devel wl-clipboard xclip clang
 ghostty
 ```
 
-It runs `pacman -Syu --needed`; Arch does not support partial upgrades. Missing lazydocker and try receive upstream installations. Other missing portable tools use the same Linux fallbacks where available.
+It runs `pacman -Syu --needed`; Arch does not support partial upgrades. Missing lazydocker receives its upstream installer. Other missing portable tools use the same Linux fallbacks where available.
 
 Package managers may install additional transitive dependencies. Those vary by operating-system release and are not selected directly by this repository.
 
@@ -137,10 +137,10 @@ It also:
 - Installs Zim completions, syntax highlighting, history substring search, autosuggestions, and Powerlevel10k.
 - Installs TPM with tmux-sensible, tmux-resurrect, tmux-continuum, and tmux-yank.
 - Synchronizes LazyVim and adds clangd/clang-format C++ support, vim-tmux-navigator, lazygit.nvim, Harpoon, Oil, Trouble, Zen Mode, and super-tab completion.
-- Configures eza as `ls`, bat as `cat`, zoxide as `cd`, fzf shell integration, Git/tmux aliases, and `try` under `~/Work/tries`.
+- Configures eza as `ls`, bat as `cat`, zoxide as `cd`, fzf shell integration, and Git/tmux aliases.
 - Installs `clipboard-copy`, which uses `pbcopy`, `wl-copy`, or `xclip` for portable tmux clipboard copying.
 
-Primary install references: [Omarchy shell tools](https://omarchy.org/manual/shell-tools/), [Neovim](https://github.com/neovim/neovim/blob/master/INSTALL.md), [Rustup](https://rustup.rs/), [Codex CLI](https://developers.openai.com/codex/cli/), [Claude Code](https://code.claude.com/docs/en/quickstart), [Grok Build](https://x.ai/news/grok-build-cli), [oh-my-pi](https://github.com/can1357/oh-my-pi), and [Herdr](https://herdr.dev/docs/install/).
+Primary install references: [Omarchy shell tools](https://omarchy.org/manual/shell-tools/), [Neovim](https://github.com/neovim/neovim/blob/master/INSTALL.md), [Rustup](https://rustup.rs/), [Codex CLI](https://developers.openai.com/codex/cli/), [Claude Code](https://code.claude.com/docs/en/quickstart), [Grok Build](https://x.ai/news/grok-build-cli), [oh-my-pi](https://github.com/can1357/oh-my-pi), [Herdr](https://herdr.dev/docs/install/), and [gh-signoff](https://github.com/basecamp/gh-signoff).
 
 ## Test
 

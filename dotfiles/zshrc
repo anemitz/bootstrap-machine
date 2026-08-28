@@ -104,10 +104,6 @@ if (( $+commands[fzf] )); then
   fi
 fi
 
-# Experiment navigation loads before the cd alias can affect its function body.
-if (( $+commands[try] )); then
-  eval "$(try init "$HOME/Work/tries")"
-fi
 if (( $+commands[zoxide] )); then
   eval "$(zoxide init zsh)"
   alias cd='z'

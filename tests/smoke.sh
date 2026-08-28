@@ -16,17 +16,20 @@ printf '%s\n' "$mac_output" | grep -q ghostty
 printf '%s\n' "$mac_output" | grep -q 'sh.rustup.rs'
 printf '%s\n' "$mac_output" | grep -q 'Codex CLI'
 printf '%s\n' "$mac_output" | grep -q 'oh-my-pi'
+printf '%s\n' "$mac_output" | grep -q 'basecamp/gh-signoff'
 
 apt_output=$(BOOTSTRAP_MACHINE_PLATFORM=linux BOOTSTRAP_MACHINE_PACKAGE_MANAGER=apt BOOTSTRAP_MACHINE_DRY_RUN=1 BOOTSTRAP_MACHINE_UPDATING=1 "$TEST_ROOT/bootstrap-machine" install)
 printf '%s\n' "$apt_output" | grep -q 'APT packages'
 printf '%s\n' "$apt_output" | grep -q ghostty
 printf '%s\n' "$apt_output" | grep -q 'sh.rustup.rs'
 printf '%s\n' "$apt_output" | grep -q 'official Linux tarball'
+printf '%s\n' "$apt_output" | grep -q 'basecamp/gh-signoff'
 
 pacman_output=$(BOOTSTRAP_MACHINE_PLATFORM=linux BOOTSTRAP_MACHINE_PACKAGE_MANAGER=pacman BOOTSTRAP_MACHINE_DRY_RUN=1 BOOTSTRAP_MACHINE_UPDATING=1 "$TEST_ROOT/bootstrap-machine" install)
 printf '%s\n' "$pacman_output" | grep -q 'pacman -Syu'
 printf '%s\n' "$pacman_output" | grep -q ghostty
 printf '%s\n' "$pacman_output" | grep -q 'sh.rustup.rs'
+printf '%s\n' "$pacman_output" | grep -q 'basecamp/gh-signoff'
 
 update_output=$(BOOTSTRAP_MACHINE_DRY_RUN=1 "$TEST_ROOT/bootstrap-machine" update)
 printf '%s\n' "$update_output" | grep -q 'git -C'
