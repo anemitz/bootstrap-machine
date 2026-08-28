@@ -5,21 +5,25 @@ set -eu
 TEST_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 
 sh -n "$TEST_ROOT/bootstrap-machine"
+bash -n "$TEST_ROOT/bootstrap-machine"
 sh -n "$TEST_ROOT/bin/clipboard-copy"
 zsh -n "$TEST_ROOT/dotfiles/zshrc"
 zsh -n "$TEST_ROOT/dotfiles/zshenv"
 
 mac_output=$(BOOTSTRAP_MACHINE_PLATFORM=macos BOOTSTRAP_MACHINE_DRY_RUN=1 BOOTSTRAP_MACHINE_UPDATING=1 "$TEST_ROOT/bootstrap-machine" install)
 printf '%s\n' "$mac_output" | grep -q 'Homebrew packages'
+printf '%s\n' "$mac_output" | grep -q ghostty
 printf '%s\n' "$mac_output" | grep -q 'Codex CLI'
 printf '%s\n' "$mac_output" | grep -q 'oh-my-pi'
 
 apt_output=$(BOOTSTRAP_MACHINE_PLATFORM=linux BOOTSTRAP_MACHINE_PACKAGE_MANAGER=apt BOOTSTRAP_MACHINE_DRY_RUN=1 BOOTSTRAP_MACHINE_UPDATING=1 "$TEST_ROOT/bootstrap-machine" install)
 printf '%s\n' "$apt_output" | grep -q 'APT packages'
+printf '%s\n' "$apt_output" | grep -q ghostty
 printf '%s\n' "$apt_output" | grep -q 'official Linux tarball'
 
 pacman_output=$(BOOTSTRAP_MACHINE_PLATFORM=linux BOOTSTRAP_MACHINE_PACKAGE_MANAGER=pacman BOOTSTRAP_MACHINE_DRY_RUN=1 BOOTSTRAP_MACHINE_UPDATING=1 "$TEST_ROOT/bootstrap-machine" install)
 printf '%s\n' "$pacman_output" | grep -q 'pacman -Syu'
+printf '%s\n' "$pacman_output" | grep -q ghostty
 
 update_output=$(BOOTSTRAP_MACHINE_DRY_RUN=1 "$TEST_ROOT/bootstrap-machine" update)
 printf '%s\n' "$update_output" | grep -q 'git -C'

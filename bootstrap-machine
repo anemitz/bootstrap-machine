@@ -63,11 +63,51 @@ run_as_root()
     fi
 }
 
+refuse_sudo_invocation()
+{
+    if [ "$(id -u)" -ne 0 ]
+    then
+        return 0
+    fi
+    if [ -n "${SUDO_USER:-}" ] || [ "$(uname -s)" = Darwin ]
+    then
+        die "run without sudo so files land in your home directory; the script prompts for sudo only when installing system packages"
+    fi
+}
+
+ensure_sudo()
+{
+    if [ "$(id -u)" -eq 0 ]
+    then
+        return 0
+    fi
+    command -v sudo >/dev/null 2>&1 || die "sudo is required to install system packages"
+    if sudo -n true >/dev/null 2>&1
+    then
+        return 0
+    fi
+    log "Requesting sudo for system package installation"
+    if [ -r /dev/tty ]
+    then
+        sudo -v </dev/tty >/dev/tty 2>/dev/tty || die "sudo authorization failed"
+    else
+        sudo -v || die "sudo authorization failed"
+    fi
+}
+
 download_file()
 {
     download_url=$1
     download_destination=$2
-    curl --fail --location --silent --show-error "$download_url" --output "$download_destination"
+    if command -v curl >/dev/null 2>&1
+    then
+        curl --fail --location --silent --show-error "$download_url" --output "$download_destination"
+    elif command -v wget >/dev/null 2>&1
+    then
+        wget -qO "$download_destination" "$download_url"
+    else
+        die "curl or wget is required to download $download_url"
+    fi
 }
 
 run_remote_installer()
@@ -192,6 +232,9 @@ done
 
 export PATH="$HOME/.local/bin:$HOME/.bun/bin:$HOME/.cargo/bin:$PATH"
 export HOMEBREW_NO_ASK=1
+export NONINTERACTIVE=1
+
+refuse_sudo_invocation
 
 if ! repository_is_complete
 then
@@ -268,6 +311,7 @@ ensure_homebrew()
             printf 'would install Homebrew from https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh\n'
             return 0
         fi
+        ensure_sudo
         run_remote_installer Homebrew https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh /bin/bash
     fi
 
@@ -292,6 +336,7 @@ install_brew_packages()
     if [ "$DRY_RUN" -eq 1 ] && ! command -v brew >/dev/null 2>&1
     then
         printf '%s\n' "would install Homebrew packages: gh neovim btop lazydocker lazygit fzf zoxide ripgrep eza fd bat tlrc yt-dlp tmux ruby llvm@18 try"
+        printf '%s\n' "would install Homebrew cask: ghostty"
         return 0
     fi
 
@@ -322,6 +367,14 @@ install_brew_packages()
     then
         run brew upgrade try
     fi
+
+    if ! brew list --cask ghostty >/dev/null 2>&1
+    then
+        run brew install --cask ghostty
+    elif [ "$UPDATE_MODE" -eq 1 ] && [ -n "$(brew outdated --cask ghostty 2>/dev/null)" ]
+    then
+        run brew upgrade --cask ghostty
+    fi
 }
 
 install_apt_packages()
@@ -330,10 +383,11 @@ install_apt_packages()
     if [ "$DRY_RUN" -eq 1 ]
     then
         printf '%s\n' "would configure GitHub CLI's official APT repository"
-        printf '%s\n' "would install APT packages: zsh gh btop fzf ripgrep fd-find bat tmux ruby-full python3 python3-pip pipx eza zoxide yt-dlp clangd-18 clang-format-18"
+        printf '%s\n' "would install APT packages: zsh gh btop fzf ripgrep fd-find bat tmux ruby-full python3 python3-pip pipx eza zoxide yt-dlp clangd-18 clang-format-18 ghostty"
         return 0
     fi
 
+    ensure_sudo
     run_as_root apt-get update
     run_as_root env DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates curl git gpg unzip tar gzip xz-utils build-essential
 
@@ -347,7 +401,7 @@ install_apt_packages()
     run_as_root apt-get update
 
     apt_packages=""
-    for apt_candidate in zsh gh btop fzf ripgrep fd-find bat tmux ruby-full python3 python3-pip pipx eza zoxide yt-dlp wl-clipboard xclip clangd-18 clang-format-18
+    for apt_candidate in zsh gh btop fzf ripgrep fd-find bat tmux ruby-full python3 python3-pip pipx eza zoxide yt-dlp wl-clipboard xclip clangd-18 clang-format-18 ghostty
     do
         if apt-cache show "$apt_candidate" >/dev/null 2>&1
         then
@@ -372,12 +426,14 @@ install_apt_packages()
 install_pacman_packages()
 {
     log "Installing pacman packages"
-    pacman_candidates="zsh git curl github-cli neovim btop lazygit fzf zoxide ripgrep eza fd bat tealdeer yt-dlp tmux ruby python-pipx unzip base-devel wl-clipboard xclip clang"
+    pacman_candidates="zsh git curl github-cli neovim btop lazygit fzf zoxide ripgrep eza fd bat tealdeer yt-dlp tmux ruby python-pipx unzip base-devel wl-clipboard xclip clang ghostty"
     if [ "$DRY_RUN" -eq 1 ]
     then
         printf 'would run: sudo pacman -Syu --needed %s\n' "$pacman_candidates"
         return 0
     fi
+
+    ensure_sudo
 
     pacman_packages=""
     for pacman_candidate in $pacman_candidates
@@ -566,12 +622,49 @@ install_try_linux()
     chmod 0755 "$HOME/.local/bin/try"
 }
 
+install_ghostty_apt_fallback()
+{
+    if command -v ghostty >/dev/null 2>&1
+    then
+        return 0
+    fi
+    log "Installing Ghostty"
+    if [ "$DRY_RUN" -eq 1 ]
+    then
+        printf 'would install Ghostty from the Ubuntu/Debian community packages\n'
+        return 0
+    fi
+
+    ensure_sudo
+    if run_as_root env DEBIAN_FRONTEND=noninteractive apt-get install -y software-properties-common \
+        && run_as_root add-apt-repository -y ppa:mkasberg/ghostty-ubuntu
+    then
+        run_as_root apt-get update
+        if run_as_root env DEBIAN_FRONTEND=noninteractive apt-get install -y ghostty
+        then
+            return 0
+        fi
+    fi
+
+    installer_directory=$(mktemp -d "${TMPDIR:-/tmp}/bootstrap-machine.XXXXXX")
+    installer_file="$installer_directory/install.sh"
+    download_file https://raw.githubusercontent.com/mkasberg/ghostty-ubuntu/HEAD/install.sh "$installer_file"
+    if /bin/bash "$installer_file"
+    then
+        rm -rf -- "$installer_directory"
+        return 0
+    fi
+    rm -rf -- "$installer_directory"
+    warn "Ghostty could not be installed"
+}
+
 install_linux_fallbacks()
 {
     if [ "$PACKAGE_MANAGER" = apt ]
     then
         install_neovim_release
         install_lazygit_release
+        install_ghostty_apt_fallback
     fi
     if command_needs_install lazydocker
     then
@@ -758,11 +851,14 @@ set_default_shell()
 doctor()
 {
     doctor_failed=0
-    for required_command in bootstrap-machine zsh gh nvim vim btop lazydocker lazygit codex claude grok omp herdr fzf zoxide rg eza fd bat tldr yt-dlp try tmux
+    for required_command in bootstrap-machine zsh gh nvim vim btop lazydocker lazygit ghostty codex claude grok omp herdr fzf zoxide rg eza fd bat tldr yt-dlp try tmux
     do
         if command -v "$required_command" >/dev/null 2>&1
         then
             printf '%-12s %s\n' "$required_command" "$(command -v "$required_command")"
+        elif [ "$required_command" = ghostty ] && [ -x /Applications/Ghostty.app/Contents/MacOS/ghostty ]
+        then
+            printf '%-12s %s\n' ghostty /Applications/Ghostty.app/Contents/MacOS/ghostty
         else
             printf '%-12s %s\n' "$required_command" missing
             doctor_failed=1

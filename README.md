@@ -7,7 +7,7 @@ Bootstrap a personal terminal environment on macOS, Ubuntu/Debian, or Arch/Omarc
 No GitHub CLI or repository clone is required:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/anemitz/bootstrap-machine/main/bootstrap-machine | sh
+curl -fsSL https://raw.githubusercontent.com/anemitz/bootstrap-machine/main/bootstrap-machine | bash
 ```
 
 To inspect the script before running it instead:
@@ -28,7 +28,7 @@ cd ~/code/bootstrap-machine
 
 The script installs packages, backs up conflicting dotfiles, links this repository's configuration, installs shell and Neovim plugins, and makes `vim` invoke Neovim. Existing files move under `~/.local/state/bootstrap-machine/backups/` before linking.
 
-The first run may ask for `sudo` and for confirmation when changing the login shell. Sign in to `gh`, `codex`, `claude`, `grok`, and other account-backed tools separately.
+Do not prefix this command with `sudo`. The script must run as your user so Homebrew, Ghostty, and dotfiles land in your home directory. It prompts for `sudo` only when installing system packages (Linux) or Homebrew (new Mac). If `curl` is missing on Debian or Ubuntu, install it first with `sudo apt-get update && sudo apt-get install -y curl`. The first run may also ask for confirmation when changing the login shell. Sign in to `gh`, `codex`, `claude`, `grok`, and other account-backed tools separately.
 
 ## Update
 
@@ -63,6 +63,7 @@ Report missing commands:
 | Group | Installed tools |
 | --- | --- |
 | Shell | Zsh, Zim, Powerlevel10k, and tmux |
+| Terminal | Ghostty |
 | Terminal tools | GitHub CLI (`gh`), btop, lazygit, and lazydocker |
 | Omarchy shell tools | fzf, zoxide, ripgrep (`rg`), eza, fd, bat, tldr, yt-dlp, and try |
 | Editor | Neovim, LazyVim, clangd, and clang-format |
@@ -80,7 +81,7 @@ gh neovim btop lazydocker lazygit fzf zoxide ripgrep eza fd bat
 tlrc yt-dlp tmux ruby llvm@18 try
 ```
 
-`try` comes from `https://github.com/tobi/try`. The built-in macOS Zsh is retained. Homebrew confirmation prompts are disabled for unattended bootstrap runs.
+Ghostty is installed with `brew install --cask ghostty`. `try` comes from `https://github.com/tobi/try`. The built-in macOS Zsh is retained. Homebrew confirmation prompts are disabled for unattended bootstrap runs.
 
 ### Ubuntu and Debian packages
 
@@ -94,10 +95,10 @@ It configures GitHub CLI's official APT repository, then installs each available
 
 ```text
 zsh gh btop fzf ripgrep fd-find bat tmux ruby-full python3 python3-pip
-pipx eza zoxide yt-dlp wl-clipboard xclip clangd-18 clang-format-18
+pipx eza zoxide yt-dlp wl-clipboard xclip clangd-18 clang-format-18 ghostty
 ```
 
-The latest upstream Neovim and lazygit Linux releases are installed under `~/.local`. Missing or outdated eza, zoxide, and yt-dlp receive upstream fallbacks. lazydocker uses its upstream installer, tldr uses pipx, and try uses its upstream Ruby script. `fdfind` and `batcat` receive `fd` and `bat` compatibility links when required.
+If Ghostty is not in the distro repositories, the script uses the community Ubuntu/Debian packages. The latest upstream Neovim and lazygit Linux releases are installed under `~/.local`. Missing or outdated eza, zoxide, and yt-dlp receive upstream fallbacks. lazydocker uses its upstream installer, tldr uses pipx, and try uses its upstream Ruby script. `fdfind` and `batcat` receive `fd` and `bat` compatibility links when required.
 
 ### Arch and Omarchy packages
 
@@ -106,6 +107,7 @@ The script installs each available package from:
 ```text
 zsh git curl github-cli neovim btop lazygit fzf zoxide ripgrep eza fd bat
 tealdeer yt-dlp tmux ruby python-pipx unzip base-devel wl-clipboard xclip clang
+ghostty
 ```
 
 It runs `pacman -Syu --needed`; Arch does not support partial upgrades. Missing lazydocker and try receive upstream installations. Other missing portable tools use the same Linux fallbacks where available.
