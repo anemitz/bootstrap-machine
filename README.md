@@ -42,7 +42,7 @@ The installed command works from any directory:
 bootstrap-machine update
 ```
 
-`update` refreshes the downloaded archive, or fast-forwards a clean Git checkout. It then re-executes the newly fetched script, upgrades managed packages and standalone tools, and synchronizes Zim, TPM, and LazyVim plugins.
+`update` refreshes the downloaded archive, or fast-forwards a clean Git checkout. It then re-executes the newly fetched script, upgrades managed packages and standalone tools (including rustup), and synchronizes Zim, TPM, and LazyVim plugins.
 
 Inspect changes without modifying the machine:
 
@@ -69,8 +69,9 @@ Report missing commands:
 | Editor | Neovim, LazyVim, clangd, and clang-format |
 | AI tools | Codex CLI, Claude Code, Grok Build, oh-my-pi (`omp`), and Herdr |
 | AI runtime | Bun, used to install and update oh-my-pi |
+| Language | Rust via rustup (`rustc`, `cargo`, rustfmt, and clippy) |
 
-AI CLIs use their publishers' installers. `try` uses its upstream script on Linux and the `tobi/try` tap on macOS.
+AI CLIs use their publishers' installers. Rust uses the official rustup installer on every platform. `try` uses its upstream script on Linux and the `tobi/try` tap on macOS.
 
 ### macOS packages
 
@@ -139,7 +140,7 @@ It also:
 - Configures eza as `ls`, bat as `cat`, zoxide as `cd`, fzf shell integration, Git/tmux aliases, and `try` under `~/Work/tries`.
 - Installs `clipboard-copy`, which uses `pbcopy`, `wl-copy`, or `xclip` for portable tmux clipboard copying.
 
-Primary install references: [Omarchy shell tools](https://omarchy.org/manual/shell-tools/), [Neovim](https://github.com/neovim/neovim/blob/master/INSTALL.md), [Codex CLI](https://developers.openai.com/codex/cli/), [Claude Code](https://code.claude.com/docs/en/quickstart), [Grok Build](https://x.ai/news/grok-build-cli), [oh-my-pi](https://github.com/can1357/oh-my-pi), and [Herdr](https://herdr.dev/docs/install/).
+Primary install references: [Omarchy shell tools](https://omarchy.org/manual/shell-tools/), [Neovim](https://github.com/neovim/neovim/blob/master/INSTALL.md), [Rustup](https://rustup.rs/), [Codex CLI](https://developers.openai.com/codex/cli/), [Claude Code](https://code.claude.com/docs/en/quickstart), [Grok Build](https://x.ai/news/grok-build-cli), [oh-my-pi](https://github.com/can1357/oh-my-pi), and [Herdr](https://herdr.dev/docs/install/).
 
 ## Test
 
