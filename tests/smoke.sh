@@ -16,6 +16,7 @@ printf '%s\n' "$mac_output" | grep -q ghostty
 printf '%s\n' "$mac_output" | grep -q 'install-rosetta --agree-to-license'
 printf '%s\n' "$mac_output" | grep -q 'sh.rustup.rs'
 printf '%s\n' "$mac_output" | grep -q 'Codex CLI'
+printf '%s\n' "$mac_output" | grep -q 'opencode.ai/install'
 printf '%s\n' "$mac_output" | grep -q 'earendil-works/pi-coding-agent'
 printf '%s\n' "$mac_output" | grep -q 'oh-my-pi'
 printf '%s\n' "$mac_output" | grep -q 'basecamp/gh-signoff'
@@ -24,6 +25,7 @@ apt_output=$(BOOTSTRAP_MACHINE_PLATFORM=linux BOOTSTRAP_MACHINE_PACKAGE_MANAGER=
 printf '%s\n' "$apt_output" | grep -q 'APT packages'
 printf '%s\n' "$apt_output" | grep -q ghostty
 printf '%s\n' "$apt_output" | grep -q 'sh.rustup.rs'
+printf '%s\n' "$apt_output" | grep -q 'opencode.ai/install'
 printf '%s\n' "$apt_output" | grep -q 'official Linux tarball'
 printf '%s\n' "$apt_output" | grep -q 'basecamp/gh-signoff'
 
@@ -31,6 +33,7 @@ pacman_output=$(BOOTSTRAP_MACHINE_PLATFORM=linux BOOTSTRAP_MACHINE_PACKAGE_MANAG
 printf '%s\n' "$pacman_output" | grep -q 'pacman -Syu'
 printf '%s\n' "$pacman_output" | grep -q ghostty
 printf '%s\n' "$pacman_output" | grep -q 'sh.rustup.rs'
+printf '%s\n' "$pacman_output" | grep -q 'opencode.ai/install'
 printf '%s\n' "$pacman_output" | grep -q 'basecamp/gh-signoff'
 
 update_output=$(BOOTSTRAP_MACHINE_DRY_RUN=1 "$TEST_ROOT/bootstrap-machine" update)

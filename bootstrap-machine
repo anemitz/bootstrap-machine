@@ -115,6 +115,7 @@ run_remote_installer()
     installer_name=$1
     installer_url=$2
     installer_shell=$3
+    shift 3
 
     log "Installing $installer_name"
     if [ "$DRY_RUN" -eq 1 ]
@@ -126,7 +127,7 @@ run_remote_installer()
     installer_directory=$(mktemp -d "${TMPDIR:-/tmp}/bootstrap-machine.XXXXXX")
     installer_file="$installer_directory/install.sh"
     download_file "$installer_url" "$installer_file"
-    if ! "$installer_shell" "$installer_file"
+    if ! "$installer_shell" "$installer_file" "$@"
     then
         rm -rf -- "$installer_directory"
         die "$installer_name installation failed"
@@ -230,7 +231,7 @@ do
     shift
 done
 
-export PATH="$HOME/.local/bin:$HOME/.bun/bin:$HOME/.cargo/bin:$PATH"
+export PATH="$HOME/.local/bin:$HOME/.opencode/bin:$HOME/.bun/bin:$HOME/.cargo/bin:$PATH"
 export HOMEBREW_NO_ASK=1
 export NONINTERACTIVE=1
 export GH_PROMPT_DISABLED=1
@@ -735,6 +736,10 @@ install_ai_tools()
     then
         run_remote_installer "Grok Build" https://x.ai/cli/install.sh /bin/bash
     fi
+    if command_needs_install opencode
+    then
+        run_remote_installer OpenCode https://opencode.ai/install /bin/bash --no-modify-path
+    fi
     if command_needs_install herdr
     then
         run_remote_installer Herdr https://herdr.dev/install.sh /bin/sh
@@ -918,7 +923,7 @@ set_default_shell()
 doctor()
 {
     doctor_failed=0
-    for required_command in bootstrap-machine zsh gh gh-signoff nvim vim btop lazydocker lazygit ghostty rustup rustc cargo codex claude grok pi omp herdr fzf zoxide rg eza fd bat tldr yt-dlp tmux
+    for required_command in bootstrap-machine zsh gh gh-signoff nvim vim btop lazydocker lazygit ghostty rustup rustc cargo codex claude grok opencode pi omp herdr fzf zoxide rg eza fd bat tldr yt-dlp tmux
     do
         if command -v "$required_command" >/dev/null 2>&1
         then

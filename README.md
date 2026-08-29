@@ -28,7 +28,7 @@ cd ~/code/bootstrap-machine
 
 The script installs packages, backs up conflicting dotfiles, links this repository's configuration, installs shell and Neovim plugins, and makes `vim` invoke Neovim. Existing files move under `~/.local/state/bootstrap-machine/backups/` before linking.
 
-Do not prefix this command with `sudo`. The script must run as your user so Homebrew, Ghostty, and dotfiles land in your home directory. It prompts for `sudo` only when installing system packages (Linux) or Homebrew (new Mac). If `curl` is missing on Debian or Ubuntu, install it first with `sudo apt-get update && sudo apt-get install -y curl`. The first run may also ask for confirmation when changing the login shell. Sign in to `gh`, `codex`, `claude`, `grok`, and other account-backed tools separately.
+Do not prefix this command with `sudo`. The script must run as your user so Homebrew, Ghostty, and dotfiles land in your home directory. It prompts for `sudo` only when installing system packages (Linux) or Homebrew (new Mac). If `curl` is missing on Debian or Ubuntu, install it first with `sudo apt-get update && sudo apt-get install -y curl`. The first run may also ask for confirmation when changing the login shell. Sign in to `gh`, `codex`, `claude`, `grok`, `opencode`, and other account-backed tools separately.
 
 ## Update
 
@@ -67,7 +67,7 @@ Report missing commands:
 | Terminal tools | GitHub CLI (`gh`) with the `basecamp/gh-signoff` extension, btop, lazygit, and lazydocker |
 | Omarchy shell tools | fzf, zoxide, ripgrep (`rg`), eza, fd, bat, tldr, and yt-dlp |
 | Editor | Neovim, LazyVim, clangd, and clang-format |
-| AI tools | Codex CLI, Claude Code, Grok Build, Pi (`pi`), oh-my-pi (`omp`), and Herdr |
+| AI tools | Codex CLI, Claude Code, Grok Build, OpenCode, Pi (`pi`), oh-my-pi (`omp`), and Herdr |
 | AI runtime | Bun, used to install and update Pi and oh-my-pi |
 | Language | Rust via rustup (`rustc`, `cargo`, rustfmt, and clippy) |
 
@@ -140,7 +140,7 @@ It also:
 - Configures eza as `ls`, bat as `cat`, zoxide as `cd`, fzf shell integration, and Git/tmux aliases.
 - Installs `clipboard-copy`, which uses `pbcopy`, `wl-copy`, or `xclip` for portable tmux clipboard copying.
 
-Primary install references: [Omarchy shell tools](https://omarchy.org/manual/shell-tools/), [Neovim](https://github.com/neovim/neovim/blob/master/INSTALL.md), [Rustup](https://rustup.rs/), [Codex CLI](https://developers.openai.com/codex/cli/), [Claude Code](https://code.claude.com/docs/en/quickstart), [Grok Build](https://x.ai/news/grok-build-cli), [Pi](https://pi.dev/docs/latest), [oh-my-pi](https://github.com/can1357/oh-my-pi), [Herdr](https://herdr.dev/docs/install/), and [gh-signoff](https://github.com/basecamp/gh-signoff).
+Primary install references: [Omarchy shell tools](https://omarchy.org/manual/shell-tools/), [Neovim](https://github.com/neovim/neovim/blob/master/INSTALL.md), [Rustup](https://rustup.rs/), [Codex CLI](https://developers.openai.com/codex/cli/), [Claude Code](https://code.claude.com/docs/en/quickstart), [Grok Build](https://x.ai/news/grok-build-cli), [OpenCode](https://opencode.ai/docs), [Pi](https://pi.dev/docs/latest), [oh-my-pi](https://github.com/can1357/oh-my-pi), [Herdr](https://herdr.dev/docs/install/), and [gh-signoff](https://github.com/basecamp/gh-signoff).
 
 ## Test
 
