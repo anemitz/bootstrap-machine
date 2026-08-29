@@ -13,8 +13,10 @@ zsh -n "$TEST_ROOT/dotfiles/zshenv"
 mac_output=$(BOOTSTRAP_MACHINE_PLATFORM=macos BOOTSTRAP_MACHINE_DRY_RUN=1 BOOTSTRAP_MACHINE_UPDATING=1 "$TEST_ROOT/bootstrap-machine" install)
 printf '%s\n' "$mac_output" | grep -q 'Homebrew packages'
 printf '%s\n' "$mac_output" | grep -q ghostty
+printf '%s\n' "$mac_output" | grep -q 'install-rosetta --agree-to-license'
 printf '%s\n' "$mac_output" | grep -q 'sh.rustup.rs'
 printf '%s\n' "$mac_output" | grep -q 'Codex CLI'
+printf '%s\n' "$mac_output" | grep -q 'earendil-works/pi-coding-agent'
 printf '%s\n' "$mac_output" | grep -q 'oh-my-pi'
 printf '%s\n' "$mac_output" | grep -q 'basecamp/gh-signoff'
 

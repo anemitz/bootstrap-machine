@@ -303,6 +303,31 @@ self_update()
     BOOTSTRAP_MACHINE_UPDATING=1 exec "$SOURCE_INSTALL_ROOT/bootstrap-machine" install
 }
 
+install_rosetta()
+{
+    [ "$PLATFORM" = macos ] || return 0
+
+    if [ "$DRY_RUN" -eq 1 ]
+    then
+        log "Installing Rosetta"
+        printf 'would run: softwareupdate --install-rosetta --agree-to-license\n'
+        return 0
+    fi
+
+    if [ "$(uname -m)" != arm64 ] && [ "$(sysctl -n hw.optional.arm64 2>/dev/null || true)" != 1 ]
+    then
+        return 0
+    fi
+
+    if arch -arch x86_64 /usr/bin/true >/dev/null 2>&1
+    then
+        return 0
+    fi
+
+    log "Installing Rosetta"
+    run /usr/sbin/softwareupdate --install-rosetta --agree-to-license
+}
+
 ensure_homebrew()
 {
     if ! command -v brew >/dev/null 2>&1
@@ -336,7 +361,7 @@ install_brew_packages()
     ensure_homebrew
     if [ "$DRY_RUN" -eq 1 ] && ! command -v brew >/dev/null 2>&1
     then
-        printf '%s\n' "would install Homebrew packages: gh neovim btop lazydocker lazygit fzf zoxide ripgrep eza fd bat tlrc yt-dlp tmux llvm@18 colima docker"
+        printf '%s\n' "would install Homebrew packages: gh neovim btop lazydocker lazygit fzf zoxide ripgrep eza fd bat tlrc yt-dlp tmux llvm@18 colima docker ollama"
         printf '%s\n' "would install Homebrew cask: ghostty"
         return 0
     fi
@@ -346,7 +371,7 @@ install_brew_packages()
         run brew update
     fi
 
-    for formula_name in gh neovim btop lazydocker lazygit fzf zoxide ripgrep eza fd bat tlrc yt-dlp tmux llvm@18 colima docker
+    for formula_name in gh neovim btop lazydocker lazygit fzf zoxide ripgrep eza fd bat tlrc yt-dlp tmux llvm@18 colima docker ollama
     do
         if ! brew list --formula "$formula_name" >/dev/null 2>&1
         then
@@ -722,10 +747,12 @@ install_ai_tools()
 
     if command -v bun >/dev/null 2>&1 || [ "$DRY_RUN" -eq 1 ]
     then
+        log "Installing Pi"
+        run bun install --global @earendil-works/pi-coding-agent@latest
         log "Installing oh-my-pi"
         run bun install --global @oh-my-pi/pi-coding-agent@latest
     else
-        warn "Bun is unavailable; oh-my-pi could not be installed"
+        warn "Bun is unavailable; Pi and oh-my-pi could not be installed"
     fi
 }
 
@@ -891,7 +918,7 @@ set_default_shell()
 doctor()
 {
     doctor_failed=0
-    for required_command in bootstrap-machine zsh gh gh-signoff nvim vim btop lazydocker lazygit ghostty rustup rustc cargo codex claude grok omp herdr fzf zoxide rg eza fd bat tldr yt-dlp tmux
+    for required_command in bootstrap-machine zsh gh gh-signoff nvim vim btop lazydocker lazygit ghostty rustup rustc cargo codex claude grok pi omp herdr fzf zoxide rg eza fd bat tldr yt-dlp tmux
     do
         if command -v "$required_command" >/dev/null 2>&1
         then
@@ -910,7 +937,7 @@ doctor()
 
     if [ "$PLATFORM" = macos ]
     then
-        for required_command in colima docker
+        for required_command in colima docker ollama
         do
             if command -v "$required_command" >/dev/null 2>&1
             then
@@ -920,6 +947,17 @@ doctor()
                 doctor_failed=1
             fi
         done
+
+        if [ "$(uname -m)" = arm64 ] || [ "$(sysctl -n hw.optional.arm64 2>/dev/null || true)" = 1 ]
+        then
+            if arch -arch x86_64 /usr/bin/true >/dev/null 2>&1
+            then
+                printf '%-12s %s\n' rosetta installed
+            else
+                printf '%-12s %s\n' rosetta missing
+                doctor_failed=1
+            fi
+        fi
     fi
     return "$doctor_failed"
 }
@@ -936,6 +974,8 @@ then
 fi
 
 run mkdir -p "$HOME/.local/bin" "$HOME/.local/share/bootstrap-machine"
+
+install_rosetta
 
 case "$PACKAGE_MANAGER" in
     brew)

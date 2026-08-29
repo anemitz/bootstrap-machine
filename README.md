@@ -67,11 +67,11 @@ Report missing commands:
 | Terminal tools | GitHub CLI (`gh`) with the `basecamp/gh-signoff` extension, btop, lazygit, and lazydocker |
 | Omarchy shell tools | fzf, zoxide, ripgrep (`rg`), eza, fd, bat, tldr, and yt-dlp |
 | Editor | Neovim, LazyVim, clangd, and clang-format |
-| AI tools | Codex CLI, Claude Code, Grok Build, oh-my-pi (`omp`), and Herdr |
-| AI runtime | Bun, used to install and update oh-my-pi |
+| AI tools | Codex CLI, Claude Code, Grok Build, Pi (`pi`), oh-my-pi (`omp`), and Herdr |
+| AI runtime | Bun, used to install and update Pi and oh-my-pi |
 | Language | Rust via rustup (`rustc`, `cargo`, rustfmt, and clippy) |
 
-AI CLIs use their publishers' installers. Rust uses the official rustup installer on every platform. After GitHub CLI is installed, the script runs `gh extension install basecamp/gh-signoff` so `gh signoff` is available.
+AI CLIs use their publishers' installers, except Pi and oh-my-pi which Bun installs from npm. Rust uses the official rustup installer on every platform. After GitHub CLI is installed, the script runs `gh extension install basecamp/gh-signoff` so `gh signoff` is available.
 
 ### macOS packages
 
@@ -79,10 +79,10 @@ The script installs Homebrew when missing. It then manages these formulae:
 
 ```text
 gh neovim btop lazydocker lazygit fzf zoxide ripgrep eza fd bat
-tlrc yt-dlp tmux llvm@18 colima docker
+tlrc yt-dlp tmux llvm@18 colima docker ollama
 ```
 
-Ghostty is installed with `brew install --cask ghostty`. Colima and the Docker CLI provide a local container runtime; start it with `colima start` after install. The built-in macOS Zsh is retained. Homebrew confirmation prompts are disabled for unattended bootstrap runs.
+Ghostty is installed with `brew install --cask ghostty`. Colima and the Docker CLI provide a local container runtime; start it with `colima start` after install. Ollama is the CLI (`brew install ollama`); start it with `ollama serve` and pull models separately. On Apple Silicon, the script installs Rosetta 2 with `softwareupdate --install-rosetta --agree-to-license`. The built-in macOS Zsh is retained. Homebrew confirmation prompts are disabled for unattended bootstrap runs.
 
 ### Ubuntu and Debian packages
 
@@ -140,7 +140,7 @@ It also:
 - Configures eza as `ls`, bat as `cat`, zoxide as `cd`, fzf shell integration, and Git/tmux aliases.
 - Installs `clipboard-copy`, which uses `pbcopy`, `wl-copy`, or `xclip` for portable tmux clipboard copying.
 
-Primary install references: [Omarchy shell tools](https://omarchy.org/manual/shell-tools/), [Neovim](https://github.com/neovim/neovim/blob/master/INSTALL.md), [Rustup](https://rustup.rs/), [Codex CLI](https://developers.openai.com/codex/cli/), [Claude Code](https://code.claude.com/docs/en/quickstart), [Grok Build](https://x.ai/news/grok-build-cli), [oh-my-pi](https://github.com/can1357/oh-my-pi), [Herdr](https://herdr.dev/docs/install/), and [gh-signoff](https://github.com/basecamp/gh-signoff).
+Primary install references: [Omarchy shell tools](https://omarchy.org/manual/shell-tools/), [Neovim](https://github.com/neovim/neovim/blob/master/INSTALL.md), [Rustup](https://rustup.rs/), [Codex CLI](https://developers.openai.com/codex/cli/), [Claude Code](https://code.claude.com/docs/en/quickstart), [Grok Build](https://x.ai/news/grok-build-cli), [Pi](https://pi.dev/docs/latest), [oh-my-pi](https://github.com/can1357/oh-my-pi), [Herdr](https://herdr.dev/docs/install/), and [gh-signoff](https://github.com/basecamp/gh-signoff).
 
 ## Test
 
