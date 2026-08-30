@@ -362,7 +362,7 @@ install_brew_packages()
     ensure_homebrew
     if [ "$DRY_RUN" -eq 1 ] && ! command -v brew >/dev/null 2>&1
     then
-        printf '%s\n' "would install Homebrew packages: gh neovim btop lazydocker lazygit fzf zoxide ripgrep eza fd bat tlrc yt-dlp tmux llvm@18 colima docker ollama"
+        printf '%s\n' "would install Homebrew packages: gh neovim btop lazydocker lazygit fzf zoxide ripgrep eza fd bat tlrc yt-dlp tmux llvm@18 colima docker ollama qemu"
         printf '%s\n' "would install Homebrew cask: ghostty"
         return 0
     fi
@@ -372,7 +372,7 @@ install_brew_packages()
         run brew update
     fi
 
-    for formula_name in gh neovim btop lazydocker lazygit fzf zoxide ripgrep eza fd bat tlrc yt-dlp tmux llvm@18 colima docker ollama
+    for formula_name in gh neovim btop lazydocker lazygit fzf zoxide ripgrep eza fd bat tlrc yt-dlp tmux llvm@18 colima docker ollama qemu
     do
         if ! brew list --formula "$formula_name" >/dev/null 2>&1
         then
@@ -398,7 +398,7 @@ install_apt_packages()
     if [ "$DRY_RUN" -eq 1 ]
     then
         printf '%s\n' "would configure GitHub CLI's official APT repository"
-        printf '%s\n' "would install APT packages: zsh gh btop fzf ripgrep fd-find bat tmux python3 python3-pip pipx eza zoxide yt-dlp clangd-18 clang-format-18 ghostty"
+        printf '%s\n' "would install APT packages: zsh gh btop fzf ripgrep fd-find bat tmux python3 python3-pip pipx eza zoxide yt-dlp clangd-18 clang-format-18 ghostty qemu-system qemu-utils qemu-kvm"
         return 0
     fi
 
@@ -416,7 +416,7 @@ install_apt_packages()
     run_as_root apt-get update
 
     apt_packages=""
-    for apt_candidate in zsh gh btop fzf ripgrep fd-find bat tmux python3 python3-pip pipx eza zoxide yt-dlp wl-clipboard xclip clangd-18 clang-format-18 ghostty
+    for apt_candidate in zsh gh btop fzf ripgrep fd-find bat tmux python3 python3-pip pipx eza zoxide yt-dlp wl-clipboard xclip clangd-18 clang-format-18 ghostty qemu-system qemu-utils qemu-kvm
     do
         if apt-cache show "$apt_candidate" >/dev/null 2>&1
         then
@@ -441,7 +441,7 @@ install_apt_packages()
 install_pacman_packages()
 {
     log "Installing pacman packages"
-    pacman_candidates="zsh git curl github-cli neovim btop lazygit fzf zoxide ripgrep eza fd bat tealdeer yt-dlp tmux python-pipx unzip base-devel wl-clipboard xclip clang ghostty"
+    pacman_candidates="zsh git curl github-cli neovim btop lazygit fzf zoxide ripgrep eza fd bat tealdeer yt-dlp tmux python-pipx unzip base-devel wl-clipboard xclip clang ghostty qemu-desktop"
     if [ "$DRY_RUN" -eq 1 ]
     then
         printf 'would run: sudo pacman -Syu --needed %s\n' "$pacman_candidates"
@@ -722,6 +722,42 @@ install_rust()
     fi
 }
 
+install_uv()
+{
+    log "Installing uv"
+    if [ "$DRY_RUN" -eq 1 ]
+    then
+        printf 'would download and run: https://astral.sh/uv/install.sh\n'
+        return 0
+    fi
+
+    if command -v uv >/dev/null 2>&1
+    then
+        if [ "$UPDATE_MODE" -eq 1 ]
+        then
+            if ! UV_NO_MODIFY_PATH=1 uv self update
+            then
+                warn "uv self update is unavailable for this installation method"
+            fi
+        fi
+        return 0
+    fi
+
+    UV_NO_MODIFY_PATH=1
+    INSTALLER_NO_MODIFY_PATH=1
+    export UV_NO_MODIFY_PATH INSTALLER_NO_MODIFY_PATH
+    installer_directory=$(mktemp -d "${TMPDIR:-/tmp}/bootstrap-machine.XXXXXX")
+    installer_file="$installer_directory/install.sh"
+    download_file https://astral.sh/uv/install.sh "$installer_file"
+    if ! /bin/sh "$installer_file"
+    then
+        rm -rf -- "$installer_directory"
+        die "uv installation failed"
+    fi
+    rm -rf -- "$installer_directory"
+    unset UV_NO_MODIFY_PATH INSTALLER_NO_MODIFY_PATH
+}
+
 install_ai_tools()
 {
     if command_needs_install codex
@@ -923,7 +959,7 @@ set_default_shell()
 doctor()
 {
     doctor_failed=0
-    for required_command in bootstrap-machine zsh gh gh-signoff nvim vim btop lazydocker lazygit ghostty rustup rustc cargo codex claude grok opencode pi omp herdr fzf zoxide rg eza fd bat tldr yt-dlp tmux
+    for required_command in bootstrap-machine zsh gh gh-signoff nvim vim btop lazydocker lazygit ghostty rustup rustc cargo uv qemu-img codex claude grok opencode pi omp herdr fzf zoxide rg eza fd bat tldr yt-dlp tmux
     do
         if command -v "$required_command" >/dev/null 2>&1
         then
@@ -1000,6 +1036,7 @@ esac
 install_ai_tools
 install_gh_extensions
 install_rust
+install_uv
 if [ "$PLATFORM" = linux ]
 then
     install_linux_fallbacks
