@@ -16,6 +16,7 @@ printf '%s\n' "$mac_output" | grep -q ghostty
 printf '%s\n' "$mac_output" | grep -q 'install-rosetta --agree-to-license'
 printf '%s\n' "$mac_output" | grep -q 'sh.rustup.rs'
 printf '%s\n' "$mac_output" | grep -q 'astral.sh/uv/install.sh'
+printf '%s\n' "$mac_output" | grep -q 'awscli.amazonaws.com/v2/install.sh'
 printf '%s\n' "$mac_output" | grep -q 'Codex CLI'
 printf '%s\n' "$mac_output" | grep -q 'opencode.ai/install'
 printf '%s\n' "$mac_output" | grep -q 'earendil-works/pi-coding-agent'
@@ -27,6 +28,7 @@ printf '%s\n' "$apt_output" | grep -q 'APT packages'
 printf '%s\n' "$apt_output" | grep -q ghostty
 printf '%s\n' "$apt_output" | grep -q 'sh.rustup.rs'
 printf '%s\n' "$apt_output" | grep -q 'astral.sh/uv/install.sh'
+printf '%s\n' "$apt_output" | grep -q 'awscli.amazonaws.com/v2/install.sh'
 printf '%s\n' "$apt_output" | grep -q qemu-system
 printf '%s\n' "$apt_output" | grep -q 'opencode.ai/install'
 printf '%s\n' "$apt_output" | grep -q 'official Linux tarball'
@@ -37,6 +39,7 @@ printf '%s\n' "$pacman_output" | grep -q 'pacman -Syu'
 printf '%s\n' "$pacman_output" | grep -q ghostty
 printf '%s\n' "$pacman_output" | grep -q 'sh.rustup.rs'
 printf '%s\n' "$pacman_output" | grep -q 'astral.sh/uv/install.sh'
+printf '%s\n' "$pacman_output" | grep -q 'awscli.amazonaws.com/v2/install.sh'
 printf '%s\n' "$pacman_output" | grep -q qemu-desktop
 printf '%s\n' "$pacman_output" | grep -q 'opencode.ai/install'
 printf '%s\n' "$pacman_output" | grep -q 'basecamp/gh-signoff'

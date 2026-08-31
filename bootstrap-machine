@@ -758,6 +758,14 @@ install_uv()
     unset UV_NO_MODIFY_PATH INSTALLER_NO_MODIFY_PATH
 }
 
+install_aws_cli()
+{
+    if command_needs_install aws
+    then
+        run_remote_installer "AWS CLI" https://awscli.amazonaws.com/v2/install.sh /bin/bash
+    fi
+}
+
 install_ai_tools()
 {
     if command_needs_install codex
@@ -959,7 +967,7 @@ set_default_shell()
 doctor()
 {
     doctor_failed=0
-    for required_command in bootstrap-machine zsh gh gh-signoff nvim vim btop lazydocker lazygit ghostty rustup rustc cargo uv qemu-img codex claude grok opencode pi omp herdr fzf zoxide rg eza fd bat tldr yt-dlp tmux
+    for required_command in bootstrap-machine zsh gh gh-signoff nvim vim btop lazydocker lazygit ghostty rustup rustc cargo uv qemu-img aws codex claude grok opencode pi omp herdr fzf zoxide rg eza fd bat tldr yt-dlp tmux
     do
         if command -v "$required_command" >/dev/null 2>&1
         then
@@ -1037,6 +1045,7 @@ install_ai_tools
 install_gh_extensions
 install_rust
 install_uv
+install_aws_cli
 if [ "$PLATFORM" = linux ]
 then
     install_linux_fallbacks
